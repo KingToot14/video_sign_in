@@ -1,7 +1,7 @@
 # Installation
 
 ## Install/Compile dlib
-The `facial-recognition` packages requires dlib to be installed. For this, you can install and compile it from the [dlib website](http://dlib.net/compile.html).<br><br>
+The `facial-recognition` package requires dlib to be installed. For this, you can install and compile it from the [dlib website](http://dlib.net/compile.html).<br><br>
 **Windows**<br>
 Instead of manually compiling dlib, you can download the `dlib-19.24.99-cp312-cp312-win_amd64.whl` wheel file from [this github repo](https://github.com/z-mahmud22/Dlib_Windows_Python3.x).<br><br>
 Then place the file in your project root and run<br>
