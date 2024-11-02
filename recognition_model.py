@@ -3,28 +3,25 @@ import cv2
 
 import os
 import time
+from util import *
 
 import math
 import numpy as np
 
+
 class RecognitionModel:
     def __init__(self, **kwargs) -> None:
-        self.training_dir = self.get(kwargs, 'dir', "recognized_faces")
-        self.match_threshold = self.get(kwargs, 'threshold', 0.6)
-        self.image_scale = self.get(kwargs, 'scale', 1.0)
-        self.benchmark = self.get(kwargs, 'benchmark', False)
+        self.training_dir = get(kwargs, 'dir', "recognized_faces")
+        self.match_threshold = get(kwargs, 'threshold', 0.6)
+        self.benchmark = get(kwargs, 'benchmark', False)
         
         self.encodings = []
         self.names = []
     
-    # utility for getting a dictionary key
-    def get(self, dict, key, default):
-        if key in dict:
-            return dict[key]
-        return default
-    
     # train a new model using the training directory specified in __init__
     def train_model(self) -> None:
+        '''Populate the model with the initial values stored in `recognized_faces`
+        '''
         self.encodings = []
         self.names = []
         
@@ -37,6 +34,9 @@ class RecognitionModel:
         all_images = []
         # gather images
         for person in os.listdir(self.training_dir):
+            if not os.path.isdir(person):
+                continue
+            
             image_dir = os.path.join(self.training_dir, person)
             images = []
             
@@ -44,7 +44,8 @@ class RecognitionModel:
                 image = cv2.imread(os.path.join(image_dir, image_path))
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                 
-                images.append(image)
+                if image.size != 0:
+                    images.append(image)
             
             all_people.append(person)
             all_images.append(images)
@@ -62,6 +63,12 @@ class RecognitionModel:
     
     # adds a new person to the model
     def add_person(self, name: str, images) -> None:
+        '''Adds a new person to model
+        
+        Args:
+            name (string): the name of the new person
+            images (ndarray[]): The pixel values of each training image
+        '''
         name = name.replace(" ", "-").lower()
         
         if self.benchmark:
@@ -106,6 +113,14 @@ class RecognitionModel:
     
     # determine how confident we are that a face is a match
     def face_confidence(self, distance: float) -> str:
+        '''Returns, as a percentage, the model's confidence in a given face
+        
+        Args:
+            distance (float): the distance between the target face and the closest match
+        
+        Returns:
+            string: the confidence as a percent
+        '''
         face_range = (1.0 - self.match_threshold)
         linear_val = (1.0 - distance) / (face_range * 2.0)
         
@@ -115,35 +130,25 @@ class RecognitionModel:
             value = (linear_val + ((1.0 - linear_val) * math.pow((linear_val - 0.5) * 2, 0.2))) * 100
             return f"{round(value, 2)}%"
     
-    def get_face_index(self, index):
-        i = 0
-        face = 0
-        prev = self.names[0]
-        
-        while i < index and i < len(self.names):
-            if self.names[i] != prev:
-                prev = self.names[i]
-                face += 1
-            
-            i += 1
-        
-        return face
-    
     # attempt to find any matching faces given an image
     def recognize_face(self, image):
+        '''Given an image, attempt to locate any faces, and whether or not we recognize them
+        
+        Args:
+            image (ndarray): the target image
+        '''
         faces = face_recognition.face_locations(image)
         ret = []
         
         if len(faces) == 0:
             return []
         
-        # test each face found
+        # calculate the encodings of each face found in `image`
         if self.benchmark:
             start_encode = time.time()
             print("Encoding Faces")
         
-        small_image = cv2.resize(image, (0, 0), fx=self.image_scale, fy=self.image_scale)
-        encodings = face_recognition.face_encodings(small_image, known_face_locations=faces)
+        encodings = face_recognition.face_encodings(image, known_face_locations=faces)
         
         if self.benchmark:
             start_encode = (time.time() - start_encode) * 1000
@@ -154,6 +159,7 @@ class RecognitionModel:
             return []
         
         face = 0
+        # attempt to match each encoding to its best match
         for encoding in encodings:
             if self.benchmark:
                 start_test = time.time()
@@ -165,14 +171,12 @@ class RecognitionModel:
             # find the best match
             best_match = np.argmin(face_distances)
             
-            # if the best match is valid, print it
             if matches[best_match]:
+                # if the best match is valid, print it
                 ret.append([faces[face], self.names[best_match]])
-                # print(f"Found {self.names[best_match]} with {self.face_confidence(face_distances[best_match])} confidence")
             else:
-                
+                # else, return an unknown person
                 ret.append([faces[face], "unknown-person"])
-                # print("Unknown person detected")
             
             if self.benchmark:
                 start_test = (time.time() - start_test) * 1000

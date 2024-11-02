@@ -1,6 +1,7 @@
 import time
 import sys
 import getopt
+from util import *
 
 import cv2
 from recognition_model import RecognitionModel
@@ -10,8 +11,8 @@ import logging
 class VideoFaceDetector:
     def __init__(self, **kwargs) -> None:
         self.recents = {}
-        self.sign_in_cooldown = self.get(kwargs, 'cooldown', 300)
-        self.scanning_frames = self.get(kwargs, 'scanning_frames', 1)
+        self.sign_in_cooldown = get(kwargs, 'cooldown', 300)
+        self.scanning_frames = get(kwargs, 'scanning_frames', 1)
         
         # configure logging
         self.logger = logging.getLogger(__name__)
@@ -19,12 +20,14 @@ class VideoFaceDetector:
         logging.basicConfig(filename="sign_ins.log", format="%(asctime)s | %(message)s",
                             datefmt="%m/%d/%Y %H:%M:%S", level=logging.INFO)
     
-    def get(self, dict, key, default):
-        if key in dict:
-            return dict[key]
-        return default
-    
     def start_capture(self, model: RecognitionModel) -> None:
+        '''Create a new OpenCV video capture
+        
+        Takes each frame and attempts to detect and recognize any faces
+        
+        Args:
+            model (RecognitionModel): the face recognition model to use
+        '''
         cap = cv2.VideoCapture(0)
         
         key = None
